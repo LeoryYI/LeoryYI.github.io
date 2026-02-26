@@ -1,0 +1,316 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>并发锁机制-synchronized | Hello World</title><meta name="keywords" content="锁机制,synchronized"><meta name="author" content="Mr_Yi"><meta name="copyright" content="Mr_Yi"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="从这篇文章开始对并发中的锁机制展开追问，首先得回答两个问题，什么是锁，为什么要引入锁，然后在这个基础上讨论synchronized的使用、实现原理、锁的膨胀升级过程（其中会讨论几个锁的概念）、Java中对synchronized锁机制的优化。 在讨论synchronized之前，首先通过一个例子来看在Java共享内存模型下的线程安全问题。 线程安全问题1234567891011121314151">
+<meta property="og:type" content="article">
+<meta property="og:title" content="并发锁机制-synchronized">
+<meta property="og:url" content="https://yimm.gitee.io/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/index.html">
+<meta property="og:site_name" content="Hello World">
+<meta property="og:description" content="从这篇文章开始对并发中的锁机制展开追问，首先得回答两个问题，什么是锁，为什么要引入锁，然后在这个基础上讨论synchronized的使用、实现原理、锁的膨胀升级过程（其中会讨论几个锁的概念）、Java中对synchronized锁机制的优化。 在讨论synchronized之前，首先通过一个例子来看在Java共享内存模型下的线程安全问题。 线程安全问题1234567891011121314151">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+<meta property="article:published_time" content="2022-11-12T08:21:03.000Z">
+<meta property="article:modified_time" content="2023-08-19T10:15:43.000Z">
+<meta property="article:author" content="Mr_Yi">
+<meta property="article:tag" content="锁机制">
+<meta property="article:tag" content="synchronized">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"><link rel="shortcut icon" href="/blogyi/img/favicon.png"><link rel="canonical" href="https://yimm.gitee.io/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/blogyi/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/blogyi/',
+  algolia: {"appId":"YIGOPDJ0CA","apiKey":"2e56daa113e070e6ac01b32788f61951","indexName":"blogYi","hits":{"per_page":6},"languages":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}.","hits_stats":"${hits} results found in ${time} ms"}},
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":false,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: 'Copy successfully',
+    error: 'Copy error',
+    noSupport: 'The browser does not support'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: 'days',
+  date_suffix: {
+    just: 'Just',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '并发锁机制-synchronized',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2023-08-19 18:15:43'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 5.4.2"></head><body><div id="web_bg"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/blogyi/img/head.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/blogyi/archives/"><div class="headline">Articles</div><div class="length-num">11</div></a><a href="/blogyi/tags/"><div class="headline">Tags</div><div class="length-num">20</div></a><a href="/blogyi/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/blogyi/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog_name"><a id="site-name" href="/blogyi/">Hello World</a></span><div id="menus"><div id="search-button"><a class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> Search</span></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/blogyi/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">并发锁机制-synchronized</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2022-11-12T08:21:03.000Z" title="Created 2022-11-12 16:21:03">2022-11-12</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2023-08-19T10:15:43.000Z" title="Updated 2023-08-19 18:15:43">2023-08-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/blogyi/categories/java/">java</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/blogyi/categories/java/%E5%A4%9A%E7%BA%BF%E7%A8%8B%E5%B9%B6%E5%8F%91/">多线程并发</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="并发锁机制-synchronized"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post View:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="post-content" id="article-container"><p> 从这篇文章开始对并发中的锁机制展开追问，首先得回答两个问题，什么是锁，为什么要引入锁，然后在这个基础上讨论synchronized的使用、实现原理、锁的膨胀升级过程（其中会讨论几个锁的概念）、Java中对synchronized锁机制的优化。</p>
+<p>在讨论synchronized之前，首先通过一个例子来看在Java共享内存模型下的线程安全问题。</p>
+<h1 id="线程安全问题"><a href="#线程安全问题" class="headerlink" title="线程安全问题"></a>线程安全问题</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SyncDemo</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">volatile</span> <span class="type">int</span> <span class="variable">counter</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">increment</span><span class="params">()</span> &#123;</span><br><span class="line">        counter++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">decrement</span><span class="params">()</span> &#123;</span><br><span class="line">        counter--;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">        <span class="type">Thread</span> <span class="variable">t1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(() -&gt; &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">50000</span>; i++) &#123;</span><br><span class="line">                increment();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, <span class="string">&quot;t1&quot;</span>);</span><br><span class="line"></span><br><span class="line">        <span class="type">Thread</span> <span class="variable">t2</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(() -&gt; &#123;</span><br><span class="line">            <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; <span class="number">50000</span>; i++) &#123;</span><br><span class="line">                decrement();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, <span class="string">&quot;t2&quot;</span>);</span><br><span class="line"></span><br><span class="line">        t1.start();</span><br><span class="line">        t2.start();</span><br><span class="line">        t1.join();</span><br><span class="line">        t2.join();</span><br><span class="line">        System.out.println(counter);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段代码描述的是对一个volatile变量，分别开两个线程进行自增五万次和自减五万次，期望的结果是零。通过之前对JMM的分析，其中会有线程安全问题，线程安全问题在可见性、有序性、原子性三个方面展开，之前的文章介绍了volatile能保证对共享变量操作的可见性和有序性，所以这里不涉及这两个问题，下面就原子性展开讨论。</p>
+<p>对于变量的自增和自减来说，在jvm层面分别对应四个指令。自增操作</p>
+<ul>
+<li>getstatic i</li>
+<li>iconst_1</li>
+<li>iadd</li>
+<li>putstatic i</li>
+</ul>
+<p>自减操作对应的jvm指令</p>
+<ul>
+<li>getstatic i</li>
+<li>iconst_1</li>
+<li>isub</li>
+<li>putstatic i </li>
+</ul>
+<p>下面来看在两个线程交替执行的情况下，对应指令执行的一种情况</p>
+<img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202211122226161.png" alt="image-20221112222623024">
+
+<p>这张图描述了两个线程在执行自减和自增操作的时候，由于自减的第四个指令也就是回写指令还没有进行，则切换到自增操作来，当自增操作的所有指令完成后，自减操作的第四个指令才进行，此时这个回写指令会覆盖自增操作的数据，由此使得整个程序运行完成后不为零。这个就是之前介绍的原子性问题。</p>
+<p>在之前的文章介绍了Java提供了两个方式来解决原子性问题，加锁和CAS，这个就是要使用锁的原因。这个时候再来看Java中的锁是什么，锁就是锁住一块临界区和临界资源，当有一个线程要执行临界区代码和访问临界资源时必须拿到锁，锁的作用是保证这个临界区和临界资源不被其它线程使用，其它线程要使用就得排队，等待当前线程释放锁。回到当前的例子，通过锁的作用，使得自增和自减的四个指令执行不会交替执行，从JMM层面上讲，保证了指令组执行的原子性。在这个基础上讨论synchronized才有意义，下面介绍synchronized的使用。</p>
+<h1 id="synchronized的使用"><a href="#synchronized的使用" class="headerlink" title="synchronized的使用"></a>synchronized的使用</h1><table>
+<thead>
+<tr>
+<th>分类</th>
+<th>具体分类</th>
+<th>被锁对象</th>
+<th>伪代码</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>方法</td>
+<td>实例方法</td>
+<td>类的实例对象</td>
+<td>public void synchronized method(){}  锁住的是类的实例对象</td>
+</tr>
+<tr>
+<td></td>
+<td>静态方法</td>
+<td>类对象</td>
+<td>public static void synchronized method(){}</td>
+</tr>
+<tr>
+<td>代码块</td>
+<td>实例对象</td>
+<td>类的实例对象</td>
+<td>synchronized(this){}</td>
+</tr>
+<tr>
+<td></td>
+<td>Class对象</td>
+<td>类对象</td>
+<td>synchronized(SynchronizedDemo.class){}</td>
+</tr>
+<tr>
+<td></td>
+<td>任意实例对象Object</td>
+<td>实例对象Object</td>
+<td>String lock = “”; synchronized(lock){}</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<h1 id="synchronized实现原理"><a href="#synchronized实现原理" class="headerlink" title="synchronized实现原理"></a>synchronized实现原理</h1><p>在Java中synchronized可以用在方法和代码块中，那么在jvm层面就对应两种标识方式，在方法中是通过access_flag中设置ACC_SYNCHRONIZED标识来说明该方法是被synchronized修饰的，在代码块中，则是通过monitorenter和monitorexit来标识中间的代码块被synchronized修饰。synchronized是基于monitor机制实现的，依赖操作系统底层的互斥原语mutex，被阻塞的线程会被挂起，等待重新调度，会导致用户态和内核态频繁的切换，对性能影响较大，因此synchronized是一把重量级锁。对于重量级锁，Java在jdk1.5之后的版本做了重大的优化，引入了偏向锁、轻量级锁、锁粗化、锁消除、自适应自旋等技术来减少锁操作的开销，这个在下文中介绍，这里先介绍synchronized的实现原理，下面看monitor机制。</p>
+<h2 id="monitor机制"><a href="#monitor机制" class="headerlink" title="monitor机制"></a>monitor机制</h2><p>monitor在操作系统中叫管程。管程是指管理共享变量以及对共享变量的操作过程使其支持并发。在jdk1.5之前Java提供的唯一并发语言就是管程，在jdk1.5之后提供的SDK并发包也是以管程为基础的。synchronized关键字和wait、notify、notifyall方法也是Java中管程技术实现的一部分，除了Java一些其它的语言也支持管程，比如：C/C++、C#。</p>
+<h3 id="MESA"><a href="#MESA" class="headerlink" title="MESA"></a>MESA</h3><p>MESA是管程使用最广泛的一种模型 ，管程主要由这几部分组成：管程入口处的等待队列、共享变量、条件变量、条件队列，方法（wait、notify、notifyall）。如果多个线程要对共享变量进行访问，首先得竞争锁，对于竞争失败的线程，则在等待队列中等待。如果线程在执行过程中通过条件变量调用了wait方法，那么该线程就会释放锁，进入条件等待队列，直到使用notify/notifyall唤醒线程，唤醒后重新进入尝试获取锁，如果失败则进入等待队列。</p>
+<p><img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/202212111709006.png" alt="image-20221211170854403"></p>
+<h3 id="Java中管程的实现"><a href="#Java中管程的实现" class="headerlink" title="Java中管程的实现"></a>Java中管程的实现</h3><p>在Java中实现管程，主要体现在jvm中，通过C语言实现，包括java.lang.Object类中的wait、notify、notifyAll方法，其中有一个数据结构叫ObjectMonitor，具体结构如下：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">ObjectMonitor</span>() &#123;  _header = <span class="literal">NULL</span>; <span class="comment">//对象头 markOop </span></span><br><span class="line">                  _count = <span class="number">0</span>; </span><br><span class="line">                  _waiters = <span class="number">0</span>,</span><br><span class="line">                  _recursions = <span class="number">0</span>; <span class="comment">// 锁的重入次数</span></span><br><span class="line">                  _object = <span class="literal">NULL</span>; <span class="comment">//存储锁对象 </span></span><br><span class="line">                  _owner = <span class="literal">NULL</span>; <span class="comment">// 标识拥有该monitor的线程（当前获取锁的线程）</span></span><br><span class="line">                  _WaitSet = <span class="literal">NULL</span>; <span class="comment">// 等待线程（调用wait）组成的双向循环链表，_WaitSet是第一个节点 </span></span><br><span class="line">                  _WaitSetLock = <span class="number">0</span> ; </span><br><span class="line">                  _Responsible = <span class="literal">NULL</span> ; </span><br><span class="line">                  _succ = <span class="literal">NULL</span> ; </span><br><span class="line">                  _cxq = <span class="literal">NULL</span> ; <span class="comment">//多线程竞争锁会先存到这个单向链表中 （FILO栈结构） </span></span><br><span class="line">                  FreeNext = <span class="literal">NULL</span> ; </span><br><span class="line">                  _EntryList = <span class="literal">NULL</span> ; <span class="comment">//存放在进入或重新进入时被阻塞(blocked)的线程 (也是存竞争锁失 败的线程) </span></span><br><span class="line">                  _SpinFreq = <span class="number">0</span> ; </span><br><span class="line">                  _SpinClock = <span class="number">0</span> ; </span><br><span class="line">                  OwnerIsThread = <span class="number">0</span> ; </span><br><span class="line">                  _previous_owner_tid = <span class="number">0</span>;</span><br><span class="line">                &#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/202212181049771.png" alt="image-20221218104944595"></p>
+<p>多个线程要想获取锁，首先得进入_cxq链表中（FILO的栈结构），如果此时的_EntryList为空的情况下_cxq中的线程会进入EntryList中，然后从中取第一个线程获取锁，所以是后到达的线程先获取锁。如果EntryList不为空则直接将第一个线程唤醒。当调用wait方法时，线程释放锁，进入到__waitSet中，如果调用notify，就会根据策略将线程放入cxq或entryList中。由此完成线程的等待唤醒机制。</p>
+<p>线程获取到锁，才拥有进入管程操作变量的权限，那么锁是什么呢？其实就是一段标识，标识了对象拥有访问变量的权限，这段标识就体现在对象头中。下面就对象的布局进行分析。</p>
+<h3 id="对象的内存布局"><a href="#对象的内存布局" class="headerlink" title="对象的内存布局"></a>对象的内存布局</h3><p>对象主要分为三个部分：对象头、实例数据、对齐填充。</p>
+<ul>
+<li><p>对象头：对象头Mark Word、元数据指针、数组长度。</p>
+</li>
+<li><p>实例数据：存放对象的属性，包括父类的属性</p>
+</li>
+<li><p>对齐填充：虚拟机要求对象的大小必须是8字节的整数倍。</p>
+<p><img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/202301081724271.png" alt="image-20230108172449771"></p>
+</li>
+</ul>
+<p>这里只详细介绍线程所涉及到的对象头，其他具体内容见JVM的内容。其中对象头也分为三个部分：mark Word、Klass pointer、数组长度。</p>
+<ul>
+<li><p>mark word：存储对象运行的自身数据，包括对象的hashcode、GC分代年龄、锁状态标志、偏向锁ID、线程持有锁、偏向时间戳，这部分数据的长度在32位和64位虚拟机分别位32bit和64bit。</p>
+</li>
+<li><p>Klass pointer：对象指向方法区种类元信息的指针，虚拟机通过这个指针来确定对象是哪个类的实例，32位的虚拟机为4字节，64位的虚拟机开启指针压缩或者最大堆内存&lt;32g时4个字节，否则8个字节。</p>
+</li>
+<li><p>数组长度：只有数组对象才有。</p>
+<p><img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/202301081737619.png" alt="image-20230108173735416"></p>
+<h1 id="锁的膨胀升级过程"><a href="#锁的膨胀升级过程" class="headerlink" title="锁的膨胀升级过程"></a>锁的膨胀升级过程</h1><p>因为synchronized是一把比较重的锁，涉及到从用户态到内核态的切换，所以jvm对synchronized做了一系列的优化，其中就包括偏向锁、轻量级锁、重量级锁、自旋优化、锁的粗化、锁消除。</p>
+<p>锁的膨胀升级过程为偏向锁-&gt;轻量级锁-&gt;重量级锁，轻量级锁和重量级锁释放后会回到无锁状态。其中竞争获取锁都是通过cas来实现的</p>
+<p>偏向锁：当系统中不存在线程竞争的时候以及当线程刚获取到锁，为了减少不必要的CAS操作，直接偏向这个获取到锁的线程。</p>
+<p>轻量级锁：当存在线程竞争资源且线程竞争不激烈的时候，偏向锁升级为轻量级锁，这种场景体现在线程交替执行的情况中。</p>
+<p>重量级锁：当存在多个线程激烈竞争，没有获取到锁的线程一直处于挂起状态，等待线程释放锁。</p>
+<p>自旋优化：当线程没有获取到重量级锁的时候，线程会置为挂起状态，线程的挂起需要调用内核的api来完成，所以是一个比较重的操作，jvm给做的优化是不让没有获取到锁的线程挂起，而是处于自旋状态，减少了线程从用户态到内核态的切换。</p>
+<p>锁的粗化：当一连串的操作都是对同一对象加锁解锁，即使没有存在锁竞争的情况，也要对对象进行加锁解锁，这个时候jvm就会加大锁的范围，即为锁的粗化。</p>
+<p>锁消除：同样也是对锁的一种优化，对没有线程竞争的资源，jvm不会对其进行加锁操作。</p>
+</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">Author: </span><span class="post-copyright-info"><a href="https://yimm.gitee.io/blogyi">Mr_Yi</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">Link: </span><span class="post-copyright-info"><a href="https://yimm.gitee.io/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/">https://yimm.gitee.io/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">Copyright Notice: </span><span class="post-copyright-info">All articles in this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless stating additionally.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/blogyi/tags/%E9%94%81%E6%9C%BA%E5%88%B6/">锁机制</a><a class="post-meta__tags" href="/blogyi/tags/synchronized/">synchronized</a></div><div class="post_share"><div class="social-share" data-image="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/blogyi/2023/01/26/%E5%BE%AE%E6%9C%8D%E5%8A%A1/springboot%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE%E5%8E%9F%E7%90%86%E4%B8%8E%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/"><img class="prev-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="onerror=null;src='/blogyi/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">Previous Post</div><div class="prev_info">springboot自动配置原理与启动过程</div></div></a></div><div class="next-post pull-right"><a href="/blogyi/2022/11/07/java%E5%B9%B6%E5%8F%91/CAS%E5%8F%8AAtomic%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C/"><img class="next-cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="onerror=null;src='/blogyi/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">Next Post</div><div class="next_info">CAS及Atomic原子操作</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><div><a href="/blogyi/2023/08/20/java%E5%B9%B6%E5%8F%91/AQS%E5%8F%8AReentrantLock%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" title="AQS及ReentrantLock原理分析"><img class="cover" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2023-08-20</div><div class="title">AQS及ReentrantLock原理分析</div></div></a></div></div></div><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> Comment</span></div><div id="comment-switch"><span class="first-comment">Valine</span><span class="switch-btn"></span><span class="second-comment">Disqus</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div><div><div id="disqus_thread"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/blogyi/img/head.jpg" onerror="this.onerror=null;this.src='/blogyi/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">Mr_Yi</div><div class="author-info__description">Make the Change</div></div><div class="card-info-data site-data is-center"><a href="/blogyi/archives/"><div class="headline">Articles</div><div class="length-num">11</div></a><a href="/blogyi/tags/"><div class="headline">Tags</div><div class="length-num">20</div></a><a href="/blogyi/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><a id="card-info-btn"><i class="fab fa-github"></i><span>加入书签</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Catalog</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%BA%BF%E7%A8%8B%E5%AE%89%E5%85%A8%E9%97%AE%E9%A2%98"><span class="toc-number">1.</span> <span class="toc-text">线程安全问题</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#synchronized%E7%9A%84%E4%BD%BF%E7%94%A8"><span class="toc-number">2.</span> <span class="toc-text">synchronized的使用</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#synchronized%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86"><span class="toc-number">3.</span> <span class="toc-text">synchronized实现原理</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#monitor%E6%9C%BA%E5%88%B6"><span class="toc-number">3.1.</span> <span class="toc-text">monitor机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#MESA"><span class="toc-number">3.1.1.</span> <span class="toc-text">MESA</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Java%E4%B8%AD%E7%AE%A1%E7%A8%8B%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="toc-number">3.1.2.</span> <span class="toc-text">Java中管程的实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80"><span class="toc-number">3.1.3.</span> <span class="toc-text">对象的内存布局</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E9%94%81%E7%9A%84%E8%86%A8%E8%83%80%E5%8D%87%E7%BA%A7%E8%BF%87%E7%A8%8B"><span class="toc-number">4.</span> <span class="toc-text">锁的膨胀升级过程</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Post</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2023/08/20/java%E5%B9%B6%E5%8F%91/AQS%E5%8F%8AReentrantLock%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" title="AQS及ReentrantLock原理分析"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="AQS及ReentrantLock原理分析"/></a><div class="content"><a class="title" href="/blogyi/2023/08/20/java%E5%B9%B6%E5%8F%91/AQS%E5%8F%8AReentrantLock%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" title="AQS及ReentrantLock原理分析">AQS及ReentrantLock原理分析</a><time datetime="2023-08-20T14:42:59.000Z" title="Created 2023-08-20 22:42:59">2023-08-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2023/02/05/mysql/mysql%E7%B4%A2%E5%BC%95%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" title="mysql索引数据结构"><img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210030953676.png" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="mysql索引数据结构"/></a><div class="content"><a class="title" href="/blogyi/2023/02/05/mysql/mysql%E7%B4%A2%E5%BC%95%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" title="mysql索引数据结构">mysql索引数据结构</a><time datetime="2023-02-05T11:18:53.000Z" title="Created 2023-02-05 19:18:53">2023-02-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2023/01/26/%E5%BE%AE%E6%9C%8D%E5%8A%A1/springboot%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE%E5%8E%9F%E7%90%86%E4%B8%8E%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/" title="springboot自动配置原理与启动过程"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="springboot自动配置原理与启动过程"/></a><div class="content"><a class="title" href="/blogyi/2023/01/26/%E5%BE%AE%E6%9C%8D%E5%8A%A1/springboot%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE%E5%8E%9F%E7%90%86%E4%B8%8E%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/" title="springboot自动配置原理与启动过程">springboot自动配置原理与启动过程</a><time datetime="2023-01-26T01:52:06.000Z" title="Created 2023-01-26 09:52:06">2023-01-26</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/" title="并发锁机制-synchronized"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="并发锁机制-synchronized"/></a><div class="content"><a class="title" href="/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/" title="并发锁机制-synchronized">并发锁机制-synchronized</a><time datetime="2022-11-12T08:21:03.000Z" title="Created 2022-11-12 16:21:03">2022-11-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2022/11/07/java%E5%B9%B6%E5%8F%91/CAS%E5%8F%8AAtomic%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C/" title="CAS及Atomic原子操作"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="CAS及Atomic原子操作"/></a><div class="content"><a class="title" href="/blogyi/2022/11/07/java%E5%B9%B6%E5%8F%91/CAS%E5%8F%8AAtomic%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C/" title="CAS及Atomic原子操作">CAS及Atomic原子操作</a><time datetime="2022-11-07T11:19:25.000Z" title="Created 2022-11-07 19:19:25">2022-11-07</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2026 By Mr_Yi</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Read Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Switch Between Light And Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle between single-column and double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="Setting"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table Of Contents"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="Scroll To Comments"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="Back To Top"><i class="fas fa-arrow-up"></i></button></div></div><div id="algolia-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">Search</span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="search-wrap"><div id="algolia-search-input"></div><hr/><div id="algolia-search-results"><div id="algolia-hits"></div><div id="algolia-pagination"></div><div id="algolia-info"><div class="algolia-stats"></div><div class="algolia-poweredBy"></div></div></div></div></div><div id="search-mask"></div></div><div><script src="/blogyi/js/utils.js"></script><script src="/blogyi/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/algoliasearch/dist/algoliasearch-lite.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instantsearch.js/dist/instantsearch.production.min.js"></script><script src="/blogyi/js/search/algolia.js"></script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    const valine = new Valine(Object.assign({
+      el: '#vcomment',
+      appId: 'H4dWsSZnEuJENvBdQagSmPHC-gzGzoHsz',
+      appKey: 'RIJs7FPdhBEBbbBmEa0WTHS5',
+      avatar: 'monsterid',
+      serverURLs: '',
+      emojiMaps: "",
+      path: window.location.pathname,
+      visitor: false
+    }, null))
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js').then(initValine)
+}
+
+if ('Valine' === 'Valine' || !false) {
+  if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+  else setTimeout(loadValine, 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script><script>function loadDisqus () {
+  var disqus_config = function () {
+    this.page.url = 'https://yimm.gitee.io/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/'
+    this.page.identifier = '/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/'
+    this.page.title = '并发锁机制-synchronized'
+  };
+
+  window.disqusReset = () => {
+    DISQUS.reset({
+      reload: true,
+      config: disqus_config
+    })
+  }
+
+  if (window.DISQUS) disqusReset()
+  else {
+    (function() { 
+      var d = document, s = d.createElement('script');
+      s.src = 'https://.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', +new Date());
+      (d.head || d.body).appendChild(s);
+    })();
+  }
+
+  document.getElementById('darkmode').addEventListener('click', () => {
+    setTimeout(() => window.disqusReset(), 200)
+  })
+}
+
+if ('Valine' === 'Disqus' || !false) {
+  if (false) btf.loadComment(document.getElementById('disqus_thread'), loadDisqus)
+  else loadDisqus()
+} else {
+  function loadOtherComment () {
+    loadDisqus()
+  }
+}
+</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>

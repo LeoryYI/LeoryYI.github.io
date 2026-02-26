@@ -1,0 +1,249 @@
+<!DOCTYPE html><html lang="en" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>jvm中对象的创建过程 | Hello World</title><meta name="keywords" content="对象创建,内存分配"><meta name="author" content="Mr_Yi"><meta name="copyright" content="Mr_Yi"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="&amp;#8195;&amp;#8195;这篇文章主要介绍在jvm中对象的创建过程，对象的创建过程包括类加载检查、分配内存、初始化、设置对象头、执行init方法。   类加载检查&amp;#8195;&amp;#8195;在程序的运行过程中，当遇到new关键字时就会创建对象，虚拟机会根据new指令的参数看能否在常量池中找到表示该类的符号引用，并且根据符号引用判断该类是否被解析、初始化过，如果没有就必须执行类加载过程。 内存分配">
+<meta property="og:type" content="article">
+<meta property="og:title" content="jvm中对象的创建过程">
+<meta property="og:url" content="https://yimm.gitee.io/blogyi/2022/10/05/jvm/%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B%E4%B8%8E%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6/index.html">
+<meta property="og:site_name" content="Hello World">
+<meta property="og:description" content="&amp;#8195;&amp;#8195;这篇文章主要介绍在jvm中对象的创建过程，对象的创建过程包括类加载检查、分配内存、初始化、设置对象头、执行init方法。   类加载检查&amp;#8195;&amp;#8195;在程序的运行过程中，当遇到new关键字时就会创建对象，虚拟机会根据new指令的参数看能否在常量池中找到表示该类的符号引用，并且根据符号引用判断该类是否被解析、初始化过，如果没有就必须执行类加载过程。 内存分配">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210051041467.png">
+<meta property="article:published_time" content="2022-10-05T02:03:31.000Z">
+<meta property="article:modified_time" content="2022-10-23T09:34:56.000Z">
+<meta property="article:author" content="Mr_Yi">
+<meta property="article:tag" content="对象创建">
+<meta property="article:tag" content="内存分配">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210051041467.png"><link rel="shortcut icon" href="/blogyi/img/favicon.png"><link rel="canonical" href="https://yimm.gitee.io/blogyi/2022/10/05/jvm/%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B%E4%B8%8E%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/blogyi/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/blogyi/',
+  algolia: {"appId":"YIGOPDJ0CA","apiKey":"2e56daa113e070e6ac01b32788f61951","indexName":"blogYi","hits":{"per_page":6},"languages":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}.","hits_stats":"${hits} results found in ${time} ms"}},
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":false,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: 'Copy successfully',
+    error: 'Copy error',
+    noSupport: 'The browser does not support'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: 'days',
+  date_suffix: {
+    just: 'Just',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/flickr-justified-gallery/dist/fjGallery.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'jvm中对象的创建过程',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2022-10-23 17:34:56'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 5.4.2"></head><body><div id="web_bg"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="/blogyi/img/head.jpg" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/blogyi/archives/"><div class="headline">Articles</div><div class="length-num">11</div></a><a href="/blogyi/tags/"><div class="headline">Tags</div><div class="length-num">20</div></a><a href="/blogyi/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/blogyi/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="not-top-img" id="page-header"><nav id="nav"><span id="blog_name"><a id="site-name" href="/blogyi/">Hello World</a></span><div id="menus"><div id="search-button"><a class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> Search</span></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/blogyi/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/blogyi/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav></header><main class="layout" id="content-inner"><div id="post"><div id="post-info"><h1 class="post-title">jvm中对象的创建过程</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2022-10-05T02:03:31.000Z" title="Created 2022-10-05 10:03:31">2022-10-05</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2022-10-23T09:34:56.000Z" title="Updated 2022-10-23 17:34:56">2022-10-23</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/blogyi/categories/java/">java</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/blogyi/categories/java/jvm/">jvm</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="jvm中对象的创建过程"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post View:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div><article class="post-content" id="article-container"><p>&#8195;&#8195;这篇文章主要介绍在jvm中对象的创建过程，对象的创建过程包括类加载检查、分配内存、初始化、设置对象头、执行init方法。</p>
+<img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210051041467.png" alt="对象创建过程" style="zoom:50%;">
+
+<h1 id="类加载检查"><a href="#类加载检查" class="headerlink" title="类加载检查"></a>类加载检查</h1><p>&#8195;&#8195;在程序的运行过程中，当遇到new关键字时就会创建对象，虚拟机会根据new指令的参数看能否在常量池中找到表示该类的符号引用，并且根据符号引用判断该类是否被解析、初始化过，如果没有就必须执行类加载过程。</p>
+<h1 id="内存分配机制"><a href="#内存分配机制" class="headerlink" title="内存分配机制"></a>内存分配机制</h1><p>&#8195;&#8195;经过类加载检查后就可以为对象分配内存了，其中给对象分配多大的内存在类加载完成后就可以确定了。在运行数据区中对象可以分配在线程栈中，也可以分配在堆中。</p>
+<p>对象在内存中分配内存空间有两种分配方法：指针碰撞、空闲列表</p>
+<ul>
+<li>指针碰撞：在内存规整的情况下使用这种分配方法，就是内存中的末端指针移动对象大小的空间</li>
+<li>空闲列表：这种方法是在内存不规整的情况下使用，虚拟机就要维护一个列表来记录哪些内存块是可用的，从可用的列表中选出一块足够大的空间，并更新空闲列表</li>
+</ul>
+<p>以上两种分配法都存在并发问题，虚拟机也提供了两种解决方案：CAS和TLAB</p>
+<ul>
+<li>CAS：对分配空间的操作进行同步处理，虚拟机通过CAS配上失败重试的方式保证更新操作的原子性</li>
+<li>TLAB：本地线程分配缓冲，就是每个线程都会在堆内存中维护一块属于自己的内存空间，分配内存时直接到这块空间分配，有效的解决了分配时的并发问题</li>
+</ul>
+<h2 id="栈上分配"><a href="#栈上分配" class="headerlink" title="栈上分配"></a>栈上分配</h2><p>&#8195;&#8195;为了减少堆内存垃圾回收的压力，虚拟机经过逃逸分析，对于一些没有逃逸出方法的对象，直接在方法的栈帧空间中分配内存，随着方法的结束，栈帧出栈，对象就被销毁，从而就不要进行垃圾回收，jdk8默认开启了逃逸分析。</p>
+<h3 id="逃逸分析"><a href="#逃逸分析" class="headerlink" title="逃逸分析"></a>逃逸分析</h3><p>&#8195;&#8195;所谓的逃逸分析指的是方法内部的对象只在当前方法中使用。下面的代码中，test1方法中user对象逃逸出了方法，test2方法中user对象没有逃逸出方法，随着方法的结束没有其它地方使用了，这种情况就可以将对象分配栈帧中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> User <span class="title function_">test1</span><span class="params">()</span>&#123;</span><br><span class="line">        <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">User</span>();</span><br><span class="line">        user.setId(<span class="string">&quot;1&quot;</span>);</span><br><span class="line">        user.setName(<span class="string">&quot;2&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> user;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">test2</span><span class="params">()</span>&#123;</span><br><span class="line">        <span class="type">User</span> <span class="variable">user</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">User</span>();</span><br><span class="line">        user.setId(<span class="string">&quot;1&quot;</span>);</span><br><span class="line">        user.setName(<span class="string">&quot;2&quot;</span>);</span><br><span class="line">        <span class="comment">// todo 保存到数据库</span></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="标量替换"><a href="#标量替换" class="headerlink" title="标量替换"></a>标量替换</h3><p>&#8195;&#8195;当通过逃逸分析，对象不会逃逸时，虚拟机就不会创建对象，而是将对象替换成不可分割的类的成员变量，在栈帧中分配。所谓的标量就是指不可以被分割的变量，比如Java的基本类型变量，聚合量就是指可以分割的变量，比如说Java对象，聚合量分解成标量就是成员变量替换对象的过程。</p>
+<h2 id="堆中分配"><a href="#堆中分配" class="headerlink" title="堆中分配"></a>堆中分配</h2><p>上一篇文章介绍了，根据垃圾收集的分代收集理论，堆空间分为：eden区、survivor区、老年代。</p>
+<h3 id="对象分配在eden区"><a href="#对象分配在eden区" class="headerlink" title="对象分配在eden区"></a>对象分配在eden区</h3><p>大多数情况下对象都是分配在eden区，当eden内存不够时会触发一次minor gc，gc后会将存活着的对象移到s0区，当eden区内存再一次不够时又会触发minor gc，此次的gc会清理eden区和s0区，gc后将存活的对象移到s1区，在新生代大多数对象都是朝生夕死的对象，经过指定次数的minor gc后，存活的对象就被移到老年代。</p>
+<h3 id="大对象直接进入老年代"><a href="#大对象直接进入老年代" class="headerlink" title="大对象直接进入老年代"></a>大对象直接进入老年代</h3><p>为了避免在多次minor gc时大对象在年轻代来回复制移动，影响效率，通过设置jvm参数，可以设定超过指定大小的对象为大对象，一般指需要大量连续的内存空间的对象，比如说字符串、数组，直接进入老年代，这种方式只有在使用serial和parnew垃圾收集器时有效。</p>
+<h3 id="长期存活的对象将进入老年代"><a href="#长期存活的对象将进入老年代" class="headerlink" title="长期存活的对象将进入老年代"></a>长期存活的对象将进入老年代</h3><p>在经过多次minor gc，分代年龄达到一定值的对象，就会进入老年代，这个可以通过jvm参数设置</p>
+<h3 id="对象的动态年龄判断机制"><a href="#对象的动态年龄判断机制" class="headerlink" title="对象的动态年龄判断机制"></a>对象的动态年龄判断机制</h3><p>在survivor区中（s0或s1），经过minor gc后，这样一批对象也会移到老年代，如果有年龄1+年龄2+…+年龄n的对象大于survivor区的50%时，那么年龄大于等于n的对象会移到老年代</p>
+<h3 id="老年代空间分配担保机制"><a href="#老年代空间分配担保机制" class="headerlink" title="老年代空间分配担保机制"></a>老年代空间分配担保机制</h3><p><img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210051532854.png" alt="老年代空间分配担保机制"></p>
+<p>这个机制主要通过担保参数来决定是否走下一步更加精细的判断，来判断是否是否进行full gc，核心思想就是要保证尽量少的触发full gc</p>
+<h1 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h1><p>虚拟机将分配到的空间初始化为零值，其中不包括对象头，这一过程保证在写程序时对象的实例字段不赋初值就可以直接之用 </p>
+<h1 id="设置对象头"><a href="#设置对象头" class="headerlink" title="设置对象头"></a>设置对象头</h1><p>在内存中的对象分为三个部分：对象头、实例数据、对齐填充。对象头包含三个部分：第一部分存储对象自身的运行时数据，第二部分是类型指针，对象指向类元信息的指针，第三部分是数组长度，只有数组对象才有</p>
+<h1 id="执行init方法"><a href="#执行init方法" class="headerlink" title="执行init方法"></a>执行init方法</h1><p>按照程序中内容给对象赋值，执行构造方法</p>
+<h1 id="对象的指针压缩"><a href="#对象的指针压缩" class="headerlink" title="对象的指针压缩"></a>对象的指针压缩</h1><p>是否进行指针压缩可以通过jvm参数来设定，通过指针压缩可以节省内存空间，使用较大的指针在内存和缓存之间传输，会占用比较大的带宽</p>
+<p>对象的大小要保证是8字节的整数倍，所以有了对象的对齐填充。cpu一次读取的数据是缓存行，在64位机器里边是8字节，比如说，有两个对象a，b都是四字节，A线程只想要读取a，但a只占4字节，因此会连带b也会一并读取到缓存行中；而同一时刻B线程只想要读取b，但b只占4字节，因此会连带a也会一并读取到缓存行中；那么这种情况下就会存在伪共享问题，这会导致A和B线程在进行数据操作时会频繁地直接去内存获取最新值，而不是从高速缓存中获取（也就是缓存失效），导致运算速度下降。</p>
+<h1 id="对象的内存回收"><a href="#对象的内存回收" class="headerlink" title="对象的内存回收"></a>对象的内存回收</h1><h2 id="引用计数法"><a href="#引用计数法" class="headerlink" title="引用计数法"></a>引用计数法</h2><p>给对象添加一个引用计数器，每当一个地方引用计数器就加一，当引用失效就减一，这种方法很难解决对象循环引用的情况，即时两个对象都是垃圾对象，循环引用时计数器最少都是一</p>
+<h2 id="可达性分析算法"><a href="#可达性分析算法" class="headerlink" title="可达性分析算法"></a>可达性分析算法</h2><p>从gc root根对象到各个引用对象形成引用链，当引用链与gc root断裂时，那么引用链上的对象都是垃圾对象</p>
+<h2 id="finalize方法最终判断对象是否存活"><a href="#finalize方法最终判断对象是否存活" class="headerlink" title="finalize方法最终判断对象是否存活"></a>finalize方法最终判断对象是否存活</h2><p>即使引用链与gc root断裂，对象不会马上被回收，还会看对象是否覆盖了finalize方法，如果没有覆盖对象就会被马上回收，如果覆盖了，还会执行finalize方法，如果对象在finalize方法中被引用了，那么对象就不会被回收</p>
+<h2 id="判断一个类是否是无用类"><a href="#判断一个类是否是无用类" class="headerlink" title="判断一个类是否是无用类"></a>判断一个类是否是无用类</h2><p>方法区的垃圾回收主要是回收无用类，需要满足三个条件：</p>
+<ul>
+<li>类的实例都已经被回收</li>
+<li>加载类的类加载器被回收</li>
+<li>类对应的类对象没有任何地方被引用，无法通过反射访问该类的方法</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">Author: </span><span class="post-copyright-info"><a href="https://yimm.gitee.io/blogyi">Mr_Yi</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">Link: </span><span class="post-copyright-info"><a href="https://yimm.gitee.io/blogyi/2022/10/05/jvm/%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B%E4%B8%8E%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6/">https://yimm.gitee.io/blogyi/2022/10/05/jvm/%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B%E4%B8%8E%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">Copyright Notice: </span><span class="post-copyright-info">All articles in this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless stating additionally.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/blogyi/tags/%E5%AF%B9%E8%B1%A1%E5%88%9B%E5%BB%BA/">对象创建</a><a class="post-meta__tags" href="/blogyi/tags/%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/">内存分配</a></div><div class="post_share"><div class="social-share" data-image="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210051041467.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/blogyi/2022/10/10/jvm/jvm%E4%B8%AD%E7%9A%84%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E6%9C%BA%E5%88%B6/"><img class="prev-cover" src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210102309565.jpeg" onerror="onerror=null;src='/blogyi/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">Previous Post</div><div class="prev_info">jvm中的垃圾回收机制</div></div></a></div><div class="next-post pull-right"><a href="/blogyi/2022/10/04/jvm/%E7%A8%8B%E5%BA%8F%E5%9C%A8JVM%E4%B8%AD%E6%98%AF%E6%80%8E%E6%A0%B7%E8%BF%90%E8%A1%8C%E7%9A%84/"><img class="next-cover" src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210041536192.png" onerror="onerror=null;src='/blogyi/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">Next Post</div><div class="next_info">程序在JVM中是怎样运行的</div></div></a></div></nav><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> Comment</span></div><div id="comment-switch"><span class="first-comment">Valine</span><span class="switch-btn"></span><span class="second-comment">Disqus</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div><div><div id="disqus_thread"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="/blogyi/img/head.jpg" onerror="this.onerror=null;this.src='/blogyi/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">Mr_Yi</div><div class="author-info__description">Make the Change</div></div><div class="card-info-data site-data is-center"><a href="/blogyi/archives/"><div class="headline">Articles</div><div class="length-num">11</div></a><a href="/blogyi/tags/"><div class="headline">Tags</div><div class="length-num">20</div></a><a href="/blogyi/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><a id="card-info-btn"><i class="fab fa-github"></i><span>加入书签</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Catalog</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E7%B1%BB%E5%8A%A0%E8%BD%BD%E6%A3%80%E6%9F%A5"><span class="toc-number">1.</span> <span class="toc-text">类加载检查</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6"><span class="toc-number">2.</span> <span class="toc-text">内存分配机制</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%88%E4%B8%8A%E5%88%86%E9%85%8D"><span class="toc-number">2.1.</span> <span class="toc-text">栈上分配</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%80%83%E9%80%B8%E5%88%86%E6%9E%90"><span class="toc-number">2.1.1.</span> <span class="toc-text">逃逸分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%87%E9%87%8F%E6%9B%BF%E6%8D%A2"><span class="toc-number">2.1.2.</span> <span class="toc-text">标量替换</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%A0%86%E4%B8%AD%E5%88%86%E9%85%8D"><span class="toc-number">2.2.</span> <span class="toc-text">堆中分配</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%B9%E8%B1%A1%E5%88%86%E9%85%8D%E5%9C%A8eden%E5%8C%BA"><span class="toc-number">2.2.1.</span> <span class="toc-text">对象分配在eden区</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%A7%E5%AF%B9%E8%B1%A1%E7%9B%B4%E6%8E%A5%E8%BF%9B%E5%85%A5%E8%80%81%E5%B9%B4%E4%BB%A3"><span class="toc-number">2.2.2.</span> <span class="toc-text">大对象直接进入老年代</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%95%BF%E6%9C%9F%E5%AD%98%E6%B4%BB%E7%9A%84%E5%AF%B9%E8%B1%A1%E5%B0%86%E8%BF%9B%E5%85%A5%E8%80%81%E5%B9%B4%E4%BB%A3"><span class="toc-number">2.2.3.</span> <span class="toc-text">长期存活的对象将进入老年代</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%8A%A8%E6%80%81%E5%B9%B4%E9%BE%84%E5%88%A4%E6%96%AD%E6%9C%BA%E5%88%B6"><span class="toc-number">2.2.4.</span> <span class="toc-text">对象的动态年龄判断机制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%80%81%E5%B9%B4%E4%BB%A3%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%8B%85%E4%BF%9D%E6%9C%BA%E5%88%B6"><span class="toc-number">2.2.5.</span> <span class="toc-text">老年代空间分配担保机制</span></a></li></ol></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-number">3.</span> <span class="toc-text">初始化</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%AE%BE%E7%BD%AE%E5%AF%B9%E8%B1%A1%E5%A4%B4"><span class="toc-number">4.</span> <span class="toc-text">设置对象头</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%89%A7%E8%A1%8Cinit%E6%96%B9%E6%B3%95"><span class="toc-number">5.</span> <span class="toc-text">执行init方法</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AF%B9%E8%B1%A1%E7%9A%84%E6%8C%87%E9%92%88%E5%8E%8B%E7%BC%A9"><span class="toc-number">6.</span> <span class="toc-text">对象的指针压缩</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%86%85%E5%AD%98%E5%9B%9E%E6%94%B6"><span class="toc-number">7.</span> <span class="toc-text">对象的内存回收</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E6%B3%95"><span class="toc-number">7.1.</span> <span class="toc-text">引用计数法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%AF%E8%BE%BE%E6%80%A7%E5%88%86%E6%9E%90%E7%AE%97%E6%B3%95"><span class="toc-number">7.2.</span> <span class="toc-text">可达性分析算法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#finalize%E6%96%B9%E6%B3%95%E6%9C%80%E7%BB%88%E5%88%A4%E6%96%AD%E5%AF%B9%E8%B1%A1%E6%98%AF%E5%90%A6%E5%AD%98%E6%B4%BB"><span class="toc-number">7.3.</span> <span class="toc-text">finalize方法最终判断对象是否存活</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%A4%E6%96%AD%E4%B8%80%E4%B8%AA%E7%B1%BB%E6%98%AF%E5%90%A6%E6%98%AF%E6%97%A0%E7%94%A8%E7%B1%BB"><span class="toc-number">7.4.</span> <span class="toc-text">判断一个类是否是无用类</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Post</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2023/08/20/java%E5%B9%B6%E5%8F%91/AQS%E5%8F%8AReentrantLock%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" title="AQS及ReentrantLock原理分析"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="AQS及ReentrantLock原理分析"/></a><div class="content"><a class="title" href="/blogyi/2023/08/20/java%E5%B9%B6%E5%8F%91/AQS%E5%8F%8AReentrantLock%E5%8E%9F%E7%90%86%E5%88%86%E6%9E%90/" title="AQS及ReentrantLock原理分析">AQS及ReentrantLock原理分析</a><time datetime="2023-08-20T14:42:59.000Z" title="Created 2023-08-20 22:42:59">2023-08-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2023/02/05/mysql/mysql%E7%B4%A2%E5%BC%95%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" title="mysql索引数据结构"><img src="https://blogyi.oss-cn-shenzhen.aliyuncs.com/blogImage202210030953676.png" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="mysql索引数据结构"/></a><div class="content"><a class="title" href="/blogyi/2023/02/05/mysql/mysql%E7%B4%A2%E5%BC%95%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" title="mysql索引数据结构">mysql索引数据结构</a><time datetime="2023-02-05T11:18:53.000Z" title="Created 2023-02-05 19:18:53">2023-02-05</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2023/01/26/%E5%BE%AE%E6%9C%8D%E5%8A%A1/springboot%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE%E5%8E%9F%E7%90%86%E4%B8%8E%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/" title="springboot自动配置原理与启动过程"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="springboot自动配置原理与启动过程"/></a><div class="content"><a class="title" href="/blogyi/2023/01/26/%E5%BE%AE%E6%9C%8D%E5%8A%A1/springboot%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE%E5%8E%9F%E7%90%86%E4%B8%8E%E5%90%AF%E5%8A%A8%E8%BF%87%E7%A8%8B/" title="springboot自动配置原理与启动过程">springboot自动配置原理与启动过程</a><time datetime="2023-01-26T01:52:06.000Z" title="Created 2023-01-26 09:52:06">2023-01-26</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/" title="并发锁机制-synchronized"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="并发锁机制-synchronized"/></a><div class="content"><a class="title" href="/blogyi/2022/11/12/java%E5%B9%B6%E5%8F%91/%E5%B9%B6%E5%8F%91%E9%94%81%E6%9C%BA%E5%88%B6-synchronized/" title="并发锁机制-synchronized">并发锁机制-synchronized</a><time datetime="2022-11-12T08:21:03.000Z" title="Created 2022-11-12 16:21:03">2022-11-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/blogyi/2022/11/07/java%E5%B9%B6%E5%8F%91/CAS%E5%8F%8AAtomic%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C/" title="CAS及Atomic原子操作"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onerror="this.onerror=null;this.src='/blogyi/img/404.jpg'" alt="CAS及Atomic原子操作"/></a><div class="content"><a class="title" href="/blogyi/2022/11/07/java%E5%B9%B6%E5%8F%91/CAS%E5%8F%8AAtomic%E5%8E%9F%E5%AD%90%E6%93%8D%E4%BD%9C/" title="CAS及Atomic原子操作">CAS及Atomic原子操作</a><time datetime="2022-11-07T11:19:25.000Z" title="Created 2022-11-07 19:19:25">2022-11-07</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2026 By Mr_Yi</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Read Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Switch Between Light And Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle between single-column and double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="Setting"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table Of Contents"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="Scroll To Comments"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="Back To Top"><i class="fas fa-arrow-up"></i></button></div></div><div id="algolia-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">Search</span><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="search-wrap"><div id="algolia-search-input"></div><hr/><div id="algolia-search-results"><div id="algolia-hits"></div><div id="algolia-pagination"></div><div id="algolia-info"><div class="algolia-stats"></div><div class="algolia-poweredBy"></div></div></div></div></div><div id="search-mask"></div></div><div><script src="/blogyi/js/utils.js"></script><script src="/blogyi/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/algoliasearch/dist/algoliasearch-lite.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/instantsearch.js/dist/instantsearch.production.min.js"></script><script src="/blogyi/js/search/algolia.js"></script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    const valine = new Valine(Object.assign({
+      el: '#vcomment',
+      appId: 'H4dWsSZnEuJENvBdQagSmPHC-gzGzoHsz',
+      appKey: 'RIJs7FPdhBEBbbBmEa0WTHS5',
+      avatar: 'monsterid',
+      serverURLs: '',
+      emojiMaps: "",
+      path: window.location.pathname,
+      visitor: false
+    }, null))
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js').then(initValine)
+}
+
+if ('Valine' === 'Valine' || !false) {
+  if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+  else setTimeout(loadValine, 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script><script>function loadDisqus () {
+  var disqus_config = function () {
+    this.page.url = 'https://yimm.gitee.io/blogyi/2022/10/05/jvm/%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B%E4%B8%8E%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6/'
+    this.page.identifier = '/blogyi/2022/10/05/jvm/%E5%AF%B9%E8%B1%A1%E7%9A%84%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B%E4%B8%8E%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E6%9C%BA%E5%88%B6/'
+    this.page.title = 'jvm中对象的创建过程'
+  };
+
+  window.disqusReset = () => {
+    DISQUS.reset({
+      reload: true,
+      config: disqus_config
+    })
+  }
+
+  if (window.DISQUS) disqusReset()
+  else {
+    (function() { 
+      var d = document, s = d.createElement('script');
+      s.src = 'https://.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', +new Date());
+      (d.head || d.body).appendChild(s);
+    })();
+  }
+
+  document.getElementById('darkmode').addEventListener('click', () => {
+    setTimeout(() => window.disqusReset(), 200)
+  })
+}
+
+if ('Valine' === 'Disqus' || !false) {
+  if (false) btf.loadComment(document.getElementById('disqus_thread'), loadDisqus)
+  else loadDisqus()
+} else {
+  function loadOtherComment () {
+    loadDisqus()
+  }
+}
+</script></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
